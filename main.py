@@ -10,7 +10,7 @@ from argparse import ArgumentParser
 from utils.data import preprocess_data
 from utils.graph import graph_construction
 from utils.cnn import cnn_block
-from utils import gnn_block, cnn_block_basic, cnn_block_triplex
+from utils.gnn import gnn_block
 
 def main(args):
     # Extract the gene and config file
