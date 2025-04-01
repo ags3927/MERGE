@@ -207,7 +207,7 @@ def test_model(data, dataloader, model, config):
 def generate_features(data, model, config):
     model.to(config['device'])
     model.eval()
-    data['cnn_features'] = []
+    data['patch_embeddings'] = []
     
     # Remove the last layer of the model
     model = torch.nn.Sequential(*list(model.children())[:-1])
@@ -265,7 +265,7 @@ def cnn_block(data, dataloaders, dataset_sizes, config):
                 lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=config['CNN']['scheduler']['step_size'], gamma=config['CNN']['scheduler']['gamma'])
             
             # Train the model
-            model_ft, val_mse, val_mae, val_corr = train_model(dataloaders, model_ft, criterion, optimizer, lr_scheduler, dataset_sizes, config['cnn_epochs'], device=config['device'])
+            model_ft, val_mse, val_mae, val_corr = train_model(dataloaders, model_ft, criterion, optimizer, lr_scheduler, dataset_sizes, config['CNN']['epochs'], device=config['device'])
             
             # Save the model    
             torch.save(model_ft.cpu().state_dict(), model_path)
