@@ -9,11 +9,11 @@ import torch.nn.functional as F
 
 from tqdm import tqdm
 from pathlib import Path
-from model import CNN_Predictor
 from scipy.stats import pearsonr
 from torch.optim import lr_scheduler
 
-from misc import recursively_serialize
+from utils.model import CNN_Predictor
+from utils.misc import recursively_serialize
 
 def train_model(dataloaders, model, criterion, optimizer, scheduler, dataset_sizes, num_epochs, device):
     # Get start time
@@ -262,10 +262,10 @@ def cnn_block(data, dataloaders, dataset_sizes, config):
             
             # Load the learning rate scheduler
             if config['CNN']['scheduler']['type'] == 'step':
-                lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=config['CNN']['scheduler']['step_size'], gamma=config['CNN']['scheduler']['gamma'])
+                scheduler = lr_scheduler.StepLR(optimizer, step_size=config['CNN']['scheduler']['step_size'], gamma=config['CNN']['scheduler']['gamma'])
             
             # Train the model
-            model_ft, val_mse, val_mae, val_corr = train_model(dataloaders, model_ft, criterion, optimizer, lr_scheduler, dataset_sizes, config['CNN']['epochs'], device=config['device'])
+            model_ft, val_mse, val_mae, val_corr = train_model(dataloaders, model_ft, criterion, optimizer, scheduler, dataset_sizes, config['CNN']['epochs'], device=config['device'])
             
             # Save the model    
             torch.save(model_ft.cpu().state_dict(), model_path)

@@ -1,21 +1,32 @@
-import pandas as pd
-import numpy as np
-import scipy.sparse as sp
-import scprep as scp
-import json
-import skimage.io
-import torch
 import os
-from torchvision import transforms
-from utils import GeneDataset
-from sklearn.neighbors import kneighbors_graph
-from torch_geometric.utils import from_scipy_sparse_matrix
-from scipy.stats import pearsonr
-from pathlib import Path
-from sklearn.cluster import KMeans
-from sklearn.model_selection import KFold
+import torch
+import skimage.io
+import numpy as np
+import pandas as pd
+
 from tqdm import tqdm
-from torch.utils.data import DataLoader
+from torchvision import transforms
+from torch.utils.data import Dataset
+from sklearn.model_selection import KFold
+class GeneDataset(Dataset):
+    """Gene Image dataset."""
+    def __init__(self, x, y, transform=None):
+        self.x = x
+        self.y = y
+        self.transform = transform
+        self.classes = y.max()-y.min()+1
+    def __len__(self):
+        return len(self.x)
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        image = self.x[idx]
+        label = self.y[idx]
+        label = np.array([label])
+        sample = {'image': image, 'label': label}
+        if self.transform:
+            sample['image'] = self.transform(sample['image'])
+        return sample
 
 def preprocess_data(config):
     # Extract the data path, slides path, and train test split path
@@ -46,8 +57,8 @@ def preprocess_data(config):
     data['num_genes'] = config['Data']['num_genes']
     
     # Do 8 fold cross validation
-    kf = KFold(n_splits=config['Data']['folds'], shuffle=True, random_state=3927)
-    train_idx, val_idx = list(kf.split(data['slides']))[config['fold']]
+    kf = KFold(n_splits=config['Data']['folds'], shuffle=True, random_state=config['General']['seed'])
+    train_idx, val_idx = list(kf.split(data['slides']))[config['Data']['fold']]
             
     # Iterate over the slides and assign them to train or test sets
     train_test_split = {
@@ -66,8 +77,9 @@ def preprocess_data(config):
         data['spotnum'].append(len(barcodes))
         
         # Load the tissue positions file and extract the x and y coordinates
-        tissue_positions = pd.read_csv(f'{data_path}/tissue_positions/{slide}.csv')
-        tissue_positions = tissue_positions[tissue_positions['in_tissue'] == 1]
+        tissue_positions = pd.read_csv(f'{data_path}/tissue_positions/{slide}.csv', header=None)
+        # tissue_positions = tissue_positions[tissue_positions['in_tissue'] == 1]
+        tissue_positions = tissue_positions[tissue_positions[1] == 1]
         data['tissue_positions'].append(tissue_positions)
         
         # Load the counts file
@@ -92,8 +104,10 @@ def preprocess_data(config):
         
         
         # Extract the x and y coordinates
-        x_coords = tissue_positions['pxl_col_in_fullres'].values
-        y_coords = tissue_positions['pxl_row_in_fullres'].values
+        x_coords = tissue_positions[4].values
+        y_coords = tissue_positions[5].values
+        # x_coords = tissue_positions['pxl_col_in_fullres'].values
+        # y_coords = tissue_positions['pxl_row_in_fullres'].values
         
         # Extract the patches
         for x, y in zip(x_coords, y_coords):      
@@ -184,6 +198,6 @@ def preprocess_data(config):
     }
     
     # Initialize the dataloaders dictionary
-    dataloaders = {i: torch.utils.data.DataLoader(image_datasets[i], batch_size=config['cnn_batch_size'], shuffle=False, num_workers=8) for i in ['train', 'val']}
+    dataloaders = {i: torch.utils.data.DataLoader(image_datasets[i], batch_size=config['CNN']['batch_size'], shuffle=False, num_workers=8) for i in ['train', 'val']}
     
     return data, image_datasets, dataloaders, dataset_sizes

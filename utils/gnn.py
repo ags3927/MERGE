@@ -3,18 +3,13 @@ import json
 import torch
 
 import numpy as np
-import torch.optim as optim
 import torch.nn.functional as F
 
-from tqdm import tqdm
 from pathlib import Path
-from einops import rearrange
 from scipy.stats import pearsonr
-from torch.utils.data import Dataset
-from torch.optim import lr_scheduler
 from transformers import WarmupLinearSchedule as get_linear_schedule_with_warmup
 
-from model import GATNet
+from utils.model import GATNet
 
 def gnn_train(gnn, input, edge_index, train_lbls, optimizer, alpha=0):
     # Set the model to training mode
@@ -198,7 +193,7 @@ def gnn_block(data, image_datasets, config, graph_datasets):
                 scheduler = get_linear_schedule_with_warmup(optimizer, warmup_steps=config['GNN']['scheduler']['warmup_steps'], num_training_steps=config['GNN']['epochs'])
 
             # Train the model
-            for i in range(config['gnn_epochs'] + 1):
+            for i in range(config['GNN']['epochs'] + 1):
                 train_mse, train_corr = gnn_train(gnn, x['train'], graph_datasets['train'][0], torch.tensor(image_datasets['train'].y).to(config['device']), optimizer)
                 
                 # Run validation every 40 epochs and step the scheduler
