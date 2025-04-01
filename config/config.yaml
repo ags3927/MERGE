@@ -2,11 +2,11 @@ General:
   seed: 3927
 
 Data:
-  dataset: stnet
-  num_genes: 250
+  dataset: DATASET_NAME
+  num_genes: NUM_GENES
   folds: 8
-  path: /data/ani/datasets/stnet
-  slides: /data/ani/repos/merge_main/merge/config/slides_stnet.csv
+  path: PATH_TO_DATASET
+  slides: PATH_TO_SLIDES
 
 CNN:
   pretrained_path: 'pretrained/model-low-v1.pth'
