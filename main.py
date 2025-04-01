@@ -1,10 +1,6 @@
 import yaml
-import json
 import torch
-import numpy as np
 
-from glob import glob
-from addict import Dict
 from pathlib import Path
 from argparse import ArgumentParser
 from utils.data import preprocess_data
@@ -27,7 +23,7 @@ def main(args):
 
     # Set additional config parameters
     config['output_dir'] = output_dir
-    config['fold'] = args.fold
+    config['Data']['fold'] = args.fold
     config['cnn_path'] = cnn_path
     config['gnn_path'] = gnn_path
     config['mode'] = mode
