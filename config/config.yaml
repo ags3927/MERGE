@@ -1,0 +1,37 @@
+General:
+  seed: 3927
+
+Data:
+  dataset: stnet
+  num_genes: 250
+  folds: 8
+  path: /data/ani/datasets/stnet
+  slides: /data/ani/repos/merge_main/merge/config/slides_stnet.csv
+
+CNN:
+  pretrained_path: 'pretrained/model-low-v1.pth'
+  batch_size: 8
+  epochs: 15
+  dropout: 0.2
+  optimizer:
+    type: adam
+    lr: 0.00005
+    weight_decay: 0.0
+  scheduler:
+    type: step
+    step_size: 2
+    gamma: 0.5
+
+
+GNN:
+  type: GAT
+  epochs: 400
+  attn_heads: 8
+  drop_edge: 0.2
+  optimizer:
+    type: adam
+    lr: 0.001
+    weight_decay: 0.0
+  scheduler:
+    type: warmup
+    warmup_steps: 10
