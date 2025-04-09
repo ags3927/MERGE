@@ -81,9 +81,7 @@ class GATNet(torch.nn.Module):
         self.nn4 = GATConv(dim3 * headn, num_genes)
         
     def forward(self, x, edge_index):
-        # pdb.set_trace()
-        
-        # # Randomly drops out edges with probability p        
+        # Randomly drops out edges with probability p        
         edge_index, _ = dropout_edge(edge_index, p=self.drop_edge, training=self.training)
         
         x = F.relu(self.nn1(x, edge_index))
