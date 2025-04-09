@@ -22,7 +22,6 @@ CNN:
     step_size: 2
     gamma: 0.5
 
-
 GNN:
   type: GAT
   epochs: 400
