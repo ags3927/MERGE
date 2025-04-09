@@ -71,3 +71,44 @@ This directory contains the raw UMI counts of the spots in the dataset. Each fil
 #### The `wsi` directory
 This directory contains the whole slide images (WSIs) of the dataset. Each file is named as `SAMPLE_NAME.jpg` and contains the WSI in JPEG format. <b>For higher quality imaging, it is advisable to procure and download the TIF files of datasets and place them in this directory.</b>
 
+## Config File
+The config file `config.yaml` contains the hyperparameters for the model. The config file is structured as follows (containing example values):
+
+```yaml
+General:
+  seed: 3927 # Random seed for reproducibility
+
+Data:
+  dataset: DATASET_NAME # DATASET_NAME can be stnet, her2st or skin
+  num_genes: NUM_GENES # Number of genes in the dataset
+  folds: 8 # Number of folds for cross-validation
+  path: PATH_TO_DATASET # Path to the dataset directory
+  slides: PATH_TO_SLIDES # Path to a csv file containing the list of sample names to use, can be a subset of the files present in the data directory. Sample files are provided in the config directory.
+
+CNN:
+  pretrained_path: 'pretrained/model-low-v1.pth' # Path to the pretrained ResNet model
+  batch_size: 8 # Batch size for CNN training (8 seems to work well for our three datasets)
+  epochs: 15 # Number of epochs for CNN training
+  dropout: 0.2 # Dropout rate for CNN
+  optimizer: # Optimizer settings for CNN. If you change this, make sure you adjust code accordingly. The code currently supports only adam optimizer.
+    type: adam
+    lr: 0.00005
+    weight_decay: 0.0
+  scheduler: # Scheduler settings for CNN. If you change this, make sure you adjust code accordingly. The code currently supports only step scheduler.
+    type: step
+    step_size: 2
+    gamma: 0.5
+
+GNN:
+  type: GAT # Type of GNN model to use. Currently supports only GAT.
+  epochs: 400 # Number of epochs for GNN training
+  attn_heads: 8 # Number of attention heads for the GAT model
+  drop_edge: 0.2 # Drop edge rate for GNN
+  optimizer: # Optimizer settings for CNN. If you change this, make sure you adjust code accordingly. The code currently supports only adam optimizer.
+    type: adam
+    lr: 0.001
+    weight_decay: 0.0
+  scheduler: # Scheduler settings for CNN. If you change this, make sure you adjust code accordingly. The code currently supports only warmup scheduler.
+    type: warmup
+    warmup_steps: 10
+```
