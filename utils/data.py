@@ -1,4 +1,5 @@
 import os
+import PIL
 import torch
 import skimage.io
 import numpy as np
@@ -8,6 +9,9 @@ from tqdm import tqdm
 from torchvision import transforms
 from torch.utils.data import Dataset
 from sklearn.model_selection import KFold
+
+PIL.Image.MAX_IMAGE_PIXELS = None
+
 class GeneDataset(Dataset):
     """Gene Image dataset."""
     def __init__(self, x, y, transform=None):
@@ -77,9 +81,8 @@ def preprocess_data(config):
         data['spotnum'].append(len(barcodes))
         
         # Load the tissue positions file and extract the x and y coordinates
-        tissue_positions = pd.read_csv(f'{data_path}/tissue_positions/{slide}.csv', header=None)
-        # tissue_positions = tissue_positions[tissue_positions['in_tissue'] == 1]
-        tissue_positions = tissue_positions[tissue_positions[1] == 1]
+        tissue_positions = pd.read_csv(f'{data_path}/tissue_positions/{slide}.csv', index_col=0)
+        tissue_positions = tissue_positions[tissue_positions['in_tissue'] == 1]
         data['tissue_positions'].append(tissue_positions)
         
         # Load the counts file
@@ -102,12 +105,9 @@ def preprocess_data(config):
         wsi = skimage.io.imread(f'{data_path}/wsi/{wsi_name}')
         patches = []
         
-        
         # Extract the x and y coordinates
-        x_coords = tissue_positions[4].values
-        y_coords = tissue_positions[5].values
-        # x_coords = tissue_positions['pxl_col_in_fullres'].values
-        # y_coords = tissue_positions['pxl_row_in_fullres'].values
+        x_coords = tissue_positions['pxl_col_in_fullres'].values
+        y_coords = tissue_positions['pxl_row_in_fullres'].values
         
         # Extract the patches
         for x, y in zip(x_coords, y_coords):      
