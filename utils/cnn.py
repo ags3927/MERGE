@@ -180,7 +180,7 @@ def test_model(data, dataloader, model, config):
         
         ground_truths.append(squeezed_labels)
         
-        # track history if only in train
+        # Track history if only in train
         with torch.set_grad_enabled(False):
             outputs = model(inputs)
             outputs = outputs.type(labels.dtype)
@@ -272,9 +272,9 @@ def cnn_block(data, dataloaders, dataset_sizes, config):
         
             # Create the metrics dictionary
             metrics = {
-                'val_mse': val_mse,
-                'val_mae': val_mae,
-                'val_corr': val_corr
+                'mse': val_mse,
+                'mae': val_mae,
+                'corr': val_corr
             }
             
             # Save the metrics to a json file
