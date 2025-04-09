@@ -157,6 +157,7 @@ def build_herarchical_graph(data, config, adj):
         if n_clusters == 0:
             n_clusters = 1
         
+        ### SPATIAL CLUSTERING ### 
         # Create a clusterer
         clusterer = KMeans(n_clusters=n_clusters, max_iter=1000)
         
