@@ -11,42 +11,57 @@ from transformers import WarmupLinearSchedule as get_linear_schedule_with_warmup
 
 from utils.model import GATNet
 
-def gnn_train(gnn, input, edge_index, train_lbls, optimizer, alpha=0):
+def gnn_train(gnn, dataloader, optimizer, alpha=0):
     # Set the model to training mode
     gnn.train()
     
-    # Track history if only in train
-    with torch.set_grad_enabled(True):
-        output = gnn(input, edge_index)
+    # Create variables to store the training losses and correlations
+    train_mse, train_corr = [], []
+    
+    for batch in dataloader:
+        # Get the batch data
+        slide_indices, edge_indices, labels, patch_embeddings = batch
+    
+        # Track history if only in train
+        with torch.set_grad_enabled(True):
+            output = gnn(patch_embeddings, edge_indices)
 
-    output = output.type(train_lbls.dtype)
-    output = output.view_as(train_lbls)
+        output = output.type(labels.dtype)
+        output = output.view_as(labels)
 
-    # Calculate the MSE loss
-    mse = F.mse_loss(output, train_lbls)
+        # Calculate the MSE loss
+        mse = F.mse_loss(output, train_lbls)
     
-    # Calculate the correlation
-    output = output.T
-    train_lbls = train_lbls.T
-    corr = []
-    for g in range(train_lbls.shape[0]):
-        corr.append(pearsonr(output[g].cpu().detach(), train_lbls[g].cpu().detach())[0])
-    corr = torch.tensor(corr)
+        # Calculate the correlation
+        output = output.T
+        train_lbls = train_lbls.T
+        corr = []
+        for g in range(train_lbls.shape[0]):
+            corr.append(pearsonr(output[g].cpu().detach(), train_lbls[g].cpu().detach())[0])
+        corr = torch.tensor(corr)
     
-    # Average the correlation using torch
-    corr = torch.mean(corr)
+        # Average the correlation using torch
+        corr = torch.mean(corr)
     
-    # Add correlation as a loss, to be maximized. Normally we do not use correlation loss, so alpha=0
-    loss = mse + alpha * (1-corr)
+        # Add correlation as a loss, to be maximized. Normally we do not use correlation loss, so alpha=0
+        loss = mse + alpha * (1-corr)
     
-    # Backpropagation    
-    loss.backward()
-
-    # Update the weights
-    optimizer.step()
-    optimizer.zero_grad()
+        # Backpropagation    
+        loss.backward()
+            
+        # Update the weights
+        optimizer.step()
+        optimizer.zero_grad()
+        
+        # Add the loss and correlation to the training losses and correlations
+        train_mse.append(mse.item())
+        train_corr.append(corr.item())
     
-    return mse, corr
+    # Average the training losses and correlations
+    train_mse = np.mean(train_mse)
+    train_corr = np.mean(train_corr)
+    
+    return train_mse, train_corr
 
 def gnn_test_save(plot_path, gnn, input, edge_index, test_lbls, data, config):
     # Set the model to evaluation mode
@@ -156,13 +171,15 @@ def gnn_block(data, image_datasets, config, graph_datasets):
             val_nonzero.append(data['nonzero'][i])
             val_features.append(data['patch_embeddings'][i])
     
-    # Non-zero indices
+    # Concatenate the patch embeddings and non-zero indices
+    train_features = np.concatenate(train_features)
+    val_features = np.concatenate(val_features)
     train_nonzero = np.concatenate(train_nonzero)
     val_nonzero = np.concatenate(val_nonzero)
     
     # Patch embeddings concatenated
-    x["train"] = torch.tensor(np.concatenate(train_features)[train_nonzero]).to(config['device'])
-    x["val"] = torch.tensor(np.concatenate(val_features)[val_nonzero]).to(config['device'])
+    x["train"] = torch.tensor(train_features[train_nonzero]).to(config['device'])
+    x["val"] = torch.tensor(val_features[val_nonzero]).to(config['device'])
     
     if config['mode'] in ['gnn_test']:
         # Create the GNN model
