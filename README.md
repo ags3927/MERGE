@@ -111,4 +111,8 @@ GNN:
   scheduler: # Scheduler settings for CNN. If you change this, make sure you adjust code accordingly. The code currently supports only warmup scheduler.
     type: warmup
     warmup_steps: 10
+  hierarchical: True # Whether to use hierarchical graph or not
+  clusters: # Number of clusters for the hierarchical graph (preferably, use the same number of clusters for both spatial and feature clustering)
+    spatial: 5
+    feature: 5
 ```
