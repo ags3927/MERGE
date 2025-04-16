@@ -192,17 +192,27 @@ def test_model(data, dataloader, model, config):
             squeezed_outputs = squeezed_outputs.unsqueeze(0) if len(squeezed_outputs.shape) == 1 else squeezed_outputs
             preds.append(squeezed_outputs)
     
+    # Concatenate the predictions. Original predictions array is a list of tensors of shape (batch_size, num_genes). Concatenation results in a tensor of shape (num_spots, num_genes)
+    preds = torch.cat(preds, dim=0)
+    
     # Preds save path
     save_path = os.path.join('/'.join(config['output_dir'].split('/')[:-1]), 'preds')
     Path(save_path).mkdir(parents=True, exist_ok=True)
     
     start = 0
-    for i in len(data['slides']):
+    for i in range(len(data['slides'])):
         if data['train_slides'][i]:
             continue
+        # Create a numpy array of zeros with the shape of (num_spots, num_genes)
         slide_preds = np.zeros((data['spotnum'][i], data['num_genes']))
-        slide_preds[data['nonzero'][i]] = preds[start : start+data['nonzero'][i]].cpu().detach().numpy()
+        
+        # Fill the numpy array with the predictions for the nonzero spots
+        slide_preds[data['nonzero'][i]] = preds[start : start+data['nonzero'][i].sum()].cpu().detach().numpy()
+        
+        # Save the predictions to a numpy file
         np.save(f'{save_path}/{data["slides"][i]}.npy', slide_preds)
+        
+        start += data['nonzero'][i].sum()
         
 def generate_features(data, model, config):
     model.to(config['device'])
