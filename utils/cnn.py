@@ -222,22 +222,25 @@ def generate_features(data, model, config):
     # Remove the last layer of the model
     model = torch.nn.Sequential(*list(model.children())[:-1])
     
-    for i in tqdm(range(len(data['slides']))):
-        # Remove the last layer of the model
-        features = []
-        for patch in data['patches'][i]:
-            # Move the patch to the device
-            patch = patch.to(config['device'])
+    # Iterate over the slides and generate the features, save them to the data dictionary
+    with torch.no_grad():
+        for i in tqdm(range(len(data['slides']))):
+            # Initialize the list to store the features for each slide
+            features = []
+            # Iterate over the patches for each slide
+            for patch in data['patches'][i]:
+                # Move the patch to the device
+                patch = patch.to(config['device'])
+                
+                # Generate the features and append to the list
+                feature = model(patch).detach().cpu().numpy()
+                features.append(feature)
+                
+            # Convert features to a numpy array
+            features = np.array(features)
             
-            # Generate the features and append to the list
-            feature = model(patch).detach().cpu().numpy()
-            features.append(feature)
-            
-        # Convert features to a numpy array
-        features = np.array(features)
-        
-        # Append the features to the data dictionary        
-        data['patch_embeddings'].append(features)
+            # Append the features to the data dictionary        
+            data['patch_embeddings'].append(features)
         
     return data
 
