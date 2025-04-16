@@ -143,8 +143,8 @@ def build_herarchical_graph(data, config, adj):
     for i in tqdm(range(len(data['slides']))):
         # Build the feature vectors
         patch_embeddings_for_slide = data['patch_embeddings'][i]
-        x_coords = data['tissue_positions'][i].reset_index()[4].values
-        y_coords = data['tissue_positions'][i].reset_index()[5].values
+        x_coords = data['tissue_positions'][i].reset_index()['pxl_col_in_fullres'].values
+        y_coords = data['tissue_positions'][i].reset_index()['pxl_row_in_fullres'].values
         
         coords = np.stack([x_coords, y_coords], axis=1)
         
@@ -216,7 +216,7 @@ def graph_construction(data, config):
     # Create graph_dataset
     dataset = GraphDataset(adj, labels, patch_embeddings, data, config)
     
-    # Create the dataloader, the batch size is set to 1 because we want to process each slide separately
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, num_workers=config['Model']['num_workers'])
+    # Create the dataloader, the batch size is set to 1 because we want to process each slide separately. We also set the number of workers to 4. This is not necessarily the best number, but it is a good starting point.
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, num_workers=4)
     
     return dataloader
