@@ -34,3 +34,7 @@ GNN:
   scheduler:
     type: warmup
     warmup_steps: 10
+  hierarchical: True
+  clusters:
+    spatial: 5
+    feature: 5
