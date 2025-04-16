@@ -207,7 +207,7 @@ def gnn_block(data, image_datasets, config, graph_datasets):
                 optimizer = torch.optim.Adam(gnn.parameters(), lr=config['GNN']['optimizer']['lr'], weight_decay=config['GNN']['optimizer']['weight_decay'])
                 
             if config['GNN']['scheduler']['type'] == "warmup":            
-                scheduler = get_linear_schedule_with_warmup(optimizer, warmup_steps=config['GNN']['scheduler']['warmup_steps'], num_training_steps=config['GNN']['epochs'])
+                scheduler = get_linear_schedule_with_warmup(optimizer, warmup_steps=config['GNN']['scheduler']['warmup_steps'], t_total=config['GNN']['epochs'])
 
             # Train the model
             for i in range(config['GNN']['epochs'] + 1):
