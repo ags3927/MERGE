@@ -133,12 +133,12 @@ def build_one_hop_graph(data, config):
     return adj, labels, patch_embeddings
 
 def build_herarchical_graph(data, config, adj):
-    # Save the cluster labels
+    # Create the output directories for the clusters
     feature_cluster_path = os.path.join(config['output_dir'], 'clusters', 'feature')
     spatial_cluster_path = os.path.join(config['output_dir'], 'clusters', 'spatial')
-    
     Path(feature_cluster_path).mkdir(parents=True, exist_ok=True)
     Path(spatial_cluster_path).mkdir(parents=True, exist_ok=True)
+    
     for i in tqdm(range(len(data['slides']))):
         # Build the feature vectors
         patch_embeddings_for_slide = data['patch_embeddings'][i]
