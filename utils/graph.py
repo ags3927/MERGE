@@ -156,7 +156,7 @@ def build_herarchical_graph(data, config, adj):
         n_clusters = config['GNN']['clusters']['spatial']
 
         # Create a clusterer
-        clusterer = KMeans(n_clusters=n_clusters, max_iter=1000)
+        clusterer = KMeans(n_clusters=n_clusters, max_iter=1000, n_init=10)
         
         # Fit the clusterer
         clusterer.fit(coords)
@@ -182,7 +182,7 @@ def build_herarchical_graph(data, config, adj):
         n_clusters = config['GNN']['clusters']['feature']
         
         # Create a clusterer
-        clusterer = KMeans(n_clusters=n_clusters, max_iter=1000)
+        clusterer = KMeans(n_clusters=n_clusters, max_iter=1000, n_init=10)
         
         # Fit the clusterer
         clusterer.fit(patch_embeddings_for_slide)
