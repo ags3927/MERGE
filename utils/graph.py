@@ -120,10 +120,11 @@ def build_one_hop_graph(data, config):
         # Add the patch embeddings
         patch_embeddings.append(torch.tensor(data['patch_embeddings'][slide_idx]))
         
+        # Set the adjacency matrix for the target slide
         adj[slide_idx] = tmp_adj
         
+        # Make the diagonal of the adjacency matrix equal to 1 to include the self-loops
         adj[slide_idx].fill_diagonal_(1)
-        
     
     # Concatenate the labels, barcodes and patch embeddings
     if config['mode'] != 'infer':
@@ -148,15 +149,12 @@ def build_herarchical_graph(data, config, adj):
         coords = np.stack([x_coords, y_coords], axis=1)
         
         # Convert patch_embeddings to numpy array
-        patch_embeddings_for_slide = np.array(patch_embeddings_for_slide)   
+        patch_embeddings_for_slide = np.array(patch_embeddings_for_slide)
         
-        # n_clusters = int(data['spotnum'][i]//config['Model']['Gene_Predictor']['clustering']['size'])
-        n_clusters = config['Model']['Gene_Predictor']['clustering']['n_clusters']
-        
-        if n_clusters == 0:
-            n_clusters = 1
-        
-        ### SPATIAL CLUSTERING ### 
+        ### SPATIAL CLUSTERING ###
+        # Get the number of clusters from the config file
+        n_clusters = config['GNN']['clusters']['spatial']
+
         # Create a clusterer
         clusterer = KMeans(n_clusters=n_clusters, max_iter=1000)
         
@@ -180,6 +178,9 @@ def build_herarchical_graph(data, config, adj):
         spatial_cluster_labels = cluster_labels.copy()
         
         ### FEATURE CLUSTERING ### 
+        # Get the number of clusters from the config file
+        n_clusters = config['GNN']['clusters']['feature']
+        
         # Create a clusterer
         clusterer = KMeans(n_clusters=n_clusters, max_iter=1000)
         
@@ -207,7 +208,7 @@ def graph_construction(data, config):
     adj, labels, patch_embeddings = build_one_hop_graph(data, config)
     print('Building the spatial graph done.')
     
-    if config['Model']['Gene_Predictor']['clustering']['enable']:
+    if config['GNN']['hierarchical']:
         print('Building the hierarchical graph...')
         adj = build_herarchical_graph(data, config, adj)
         print('Building the hierarchical graph done.')
@@ -215,7 +216,7 @@ def graph_construction(data, config):
     # Create graph_dataset
     dataset = GraphDataset(adj, labels, patch_embeddings, data, config)
     
-    # Create the dataloader
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['Model']['batch_size'], shuffle=True, num_workers=config['Model']['num_workers'])
+    # Create the dataloader, the batch size is set to 1 because we want to process each slide separately
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, num_workers=config['Model']['num_workers'])
     
     return dataloader
