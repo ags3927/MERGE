@@ -1,4 +1,8 @@
 *.out
 result/
+preds/
 data*/
 data.tar.gz
+
+**/__pycache__
+**/*.pyc
