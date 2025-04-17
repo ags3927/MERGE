@@ -44,17 +44,17 @@ def main(args):
     config['device'] = torch.device(f"cuda:{device}" if torch.cuda.is_available() else "cpu")
     
     # Preprocess the data
-    data, image_datasets, dataloaders, dataset_sizes = preprocess_data(config)
+    data, dataloaders, dataset_sizes = preprocess_data(config)
     
     # CNN Block
     data = cnn_block(data=data, dataloaders=dataloaders, dataset_sizes=dataset_sizes, config=config)
     
     if mode in ['gnn_train', 'gnn_test', 'gnn_test_ext']:
         # Construct graph datasets
-        graph_datasets = graph_construction(data, config)
+        graph_dataloaders = graph_construction(data, config)
         
         # GNN Block
-        gnn_block(data=data, image_datasets=image_datasets, config=config, graph_datasets=graph_datasets)
+        gnn_block(data=data, dataloaders=graph_dataloaders, config=config)
    
     return
     
