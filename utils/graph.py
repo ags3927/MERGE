@@ -13,25 +13,28 @@ from torch_geometric.utils import from_scipy_sparse_matrix
 
 ### GRAPH DATASET ###
 class GraphDataset(Dataset):
-    def __init__(self, adj, labels, patch_embeddings, data, config):
+    def __init__(self, adj, data, config, train=True):
         self.slide_indices = []
         self.edge_indices = []
         self.labels = []
         self.patch_embeddings = []
         
-        start = 0
         for idx, _ in enumerate(data['slides']):
-            spotnum = data['spotnum'][idx]
+            # Skip the slides that are not in the train or test set for the respective mode
+            if train and not data['train_slides'][idx]:
+                continue
+            elif not train and data['train_slides'][idx]:
+                continue
             
             slide_edge_indices = from_scipy_sparse_matrix(sp.coo_matrix(adj[idx]))[0].to(config['device'])
-            slide_labels = labels[start:start+spotnum]
-            slide_embeddings = patch_embeddings[start:start+spotnum]
+            slide_labels = torch.tensor(data['counts'][idx]).to(config['device'])
+            slide_embeddings = torch.tensor(data['patch_embeddings'][idx]).to(config['device'])
             
+            # Append the slide index, edge indices, labels and patch embeddings to the lists
             self.slide_indices.append(idx)
             self.edge_indices.append(slide_edge_indices)
             self.labels.append(slide_labels)
             self.patch_embeddings.append(slide_embeddings)
-            start += spotnum
             
     def __len__(self):
         return len(self.edge_indices)
@@ -95,15 +98,12 @@ def update_adj(adj, cluster_labels, patch_embeddings, old_labels=None):
         
     return adj, cluster_labels
 
-def build_one_hop_graph(data, config):   
+def build_one_hop_graph(data):   
     # Get the number of non-zero spots for the train, val and test sets
     adj = []
     
     for i in range(len(data['slides'])):
         adj.append(torch.zeros(data['spotnum'][i], data['spotnum'][i]))
-        
-    labels = []
-    patch_embeddings = []
     
     for slide_idx, _ in enumerate(data['slides']):
         # Build a graph of the 8 one-hop neighbors for each spot
@@ -113,25 +113,13 @@ def build_one_hop_graph(data, config):
         tmp_adj = (tmp_adj + tmp_adj.T) > 0
         tmp_adj = torch.tensor(tmp_adj)
         
-        # Add the labels
-        if config['mode'] != 'infer':
-            labels.append(torch.tensor(data['counts'][slide_idx]))
-        
-        # Add the patch embeddings
-        patch_embeddings.append(torch.tensor(data['patch_embeddings'][slide_idx]))
-        
         # Set the adjacency matrix for the target slide
         adj[slide_idx] = tmp_adj
         
         # Make the diagonal of the adjacency matrix equal to 1 to include the self-loops
         adj[slide_idx].fill_diagonal_(1)
     
-    # Concatenate the labels, barcodes and patch embeddings
-    if config['mode'] != 'infer':
-        labels = torch.cat(labels, dim=0)
-    patch_embeddings = torch.cat(patch_embeddings, dim=0)
-    
-    return adj, labels, patch_embeddings
+    return adj
 
 def build_herarchical_graph(data, config, adj):
     # Create the output directories for the clusters
@@ -205,7 +193,7 @@ def build_herarchical_graph(data, config, adj):
 def graph_construction(data, config):
     # Build the spatial graph
     print('Building the spatial graph...')
-    adj, labels, patch_embeddings = build_one_hop_graph(data, config)
+    adj = build_one_hop_graph(data)
     print('Building the spatial graph done.')
     
     if config['GNN']['hierarchical']:
@@ -214,9 +202,16 @@ def graph_construction(data, config):
         print('Building the hierarchical graph done.')
     
     # Create graph_dataset
-    dataset = GraphDataset(adj, labels, patch_embeddings, data, config)
+    train_dataset = GraphDataset(adj, data, config, train=True)
+    val_dataset = GraphDataset(adj, data, config, train=False)
     
     # Create the dataloader, the batch size is set to 1 because we want to process each slide separately. We also set the number of workers to 4. This is not necessarily the best number, but it is a good starting point.
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, num_workers=4)
+    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=4)
+    val_dataset = torch.utils.data.DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=0)
     
-    return dataloader
+    dataloaders = {
+        'train': train_dataloader,
+        'val': val_dataset
+    }
+    
+    return dataloaders
