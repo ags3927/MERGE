@@ -207,11 +207,11 @@ def graph_construction(data, config):
     
     # Create the dataloader, the batch size is set to 1 because we want to process each slide separately. We also set the number of workers to 4. This is not necessarily the best number, but it is a good starting point.
     train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=0)
-    val_dataset = torch.utils.data.DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=0)
+    val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=0)
     
     dataloaders = {
         'train': train_dataloader,
-        'val': val_dataset
+        'val': val_dataloader
     }
     
     return dataloaders
