@@ -1,6 +1,7 @@
 *.out
 result/
 preds/
+logs/
 data*/
 data.tar.gz
 
