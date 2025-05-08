@@ -91,7 +91,10 @@ def gnn_test_save(plot_path, gnn, dataloader, data, config):
             output = gnn(patch_embeddings, edge_indices)
             
         # Remove the last / and the last word from config['output_dir'] to get the base directory
-        base_dir = '/'.join(config['output_dir'].split('/')[:-1])       
+        if len(config['output_dir'].split('/')) > 1:
+            base_dir = '/'.join(config['output_dir'].split('/')[:-1])
+        else:
+            base_dir = config['output_dir']
 
         # Create the directory to save the predictions
         preds_save_path = f'{base_dir}/preds/'
@@ -248,6 +251,194 @@ def gnn_block(data, dataloaders, config):
             Path(plot_path).mkdir(parents=True, exist_ok=True)
             
             gnn_test_save(plot_path, gnn, dataloaders['val'], data, config)
+            
+            model_path = plot_path + f"model_state_dict.pt"
+            torch.save(gnn.cpu().state_dict(), model_path)
+            
+            del gnn
+    return
+
+### WHOLE DATASET CODE ###
+def gnn_test_whole_dataset(gnn, input, edge_index, test_lbls, num_genes):
+    gnn.eval()
+    
+    # track history if only in train
+    with torch.set_grad_enabled(False):
+        output = gnn(input, edge_index)
+
+    output = output.type(test_lbls.dtype)
+
+    output = output.view_as(test_lbls)
+    # pdb.set_trace()
+    mse = F.mse_loss(output, test_lbls)
+    mae = F.l1_loss(output, test_lbls)
+    
+    output = output.T
+    test_lbls = test_lbls.T
+
+    # pdb.set_trace()
+    
+    corr = []
+    for g in range(num_genes):
+        corr.append(pearsonr(output[g].cpu().detach(), test_lbls[g].cpu().detach())[0])
+    corr = torch.tensor(corr)
+    
+    return mse, mae, np.average(corr.cpu().numpy())
+
+def gnn_test_save_whole_dataset(plot_path, gnn, input, edge_index, test_lbls, data, config):
+    num_genes = data['num_genes']
+    
+    gnn.eval()
+    with torch.set_grad_enabled(False):
+        output = gnn(input, edge_index)
+    
+    # Separate the output counts into the val slice dimensions save the results
+
+    # Remove the last / and the last word from config['output_dir']
+    base_dir = '/'.join(config['output_dir'].split('/')[:-1])
+
+    preds_save_path = f'{base_dir}/preds/'
+    Path(preds_save_path).mkdir(parents=True, exist_ok=True)
+    
+    start = 0
+    for idx, slide in enumerate(data['slides']):
+        if data['train_slides'][idx]:
+            continue
+        predicted_counts = np.zeros(shape=(data['spotnum'][idx], num_genes))
+        non_zero = data['nonzero'][idx]
+        non_zero_count = np.sum(non_zero)
+        
+        predicted_counts[non_zero] = output.cpu().detach().numpy()[start:start+non_zero_count]
+        start += non_zero_count
+        
+        # Save the predicted counts
+        np.save(f'{preds_save_path}/{slide}.npy', predicted_counts)
+    
+    output = output.type(test_lbls.dtype)
+    output = output.view_as(test_lbls)
+    
+    mse_loss = F.mse_loss(output, test_lbls)
+    mae_loss = F.l1_loss(output, test_lbls)
+    
+    output = output.T
+    test_lbls = test_lbls.T
+    
+    corr = []
+    for g in range(num_genes):
+        corr.append(pearsonr(output[g].cpu().detach(), test_lbls[g].cpu().detach())[0])
+    corr = torch.tensor(corr)
+    
+    # Save the results
+    results = {
+        'mse': mse_loss.item(),
+        'mae': mae_loss.item(),
+        'corr': np.average(corr.cpu().numpy())
+    }
+    
+    results_file_path = f'{plot_path}/results.json'
+    
+    with open(results_file_path, 'w') as f:
+        json.dump(results, f)
+           
+    return
+
+def gnn_train_whole_dataset(gnn, epoch, input, edge_index, train_lbls, optimizer, alpha=0):
+    gnn.train()
+    
+    # track history if only in train
+    with torch.set_grad_enabled(True):
+        output = gnn(input, edge_index)
+
+    output = output.type(train_lbls.dtype)
+    output = output.view_as(train_lbls)
+
+    mse = F.mse_loss(output, train_lbls)
+    
+    output = output.T
+    train_lbls = train_lbls.T
+    
+    corr = []
+    for g in range(train_lbls.shape[0]):
+        corr.append(pearsonr(output[g].cpu().detach(), train_lbls[g].cpu().detach())[0])
+    corr = torch.tensor(corr)
+    
+    # Average the correlation using torch
+    corr = torch.mean(corr)
+    
+    # Add correlation as a loss, to be maximized
+    loss = mse + alpha * corr
+    
+    loss.backward()
+
+    optimizer.step()
+    optimizer.zero_grad()
+    
+    return mse, corr
+
+def gnn_block_whole_dataset(data, image_datasets, config, graph_datasets):
+    x = {}
+        
+    train_nonzero, val_nonzero = [], []
+    train_features, val_features = [], []
+    
+    for i in range(len(data['slides'])):
+        if data['train_slides'][i]:
+            train_nonzero.append(data['nonzero'][i])
+            train_features.append(data['patch_embeddings'][i])
+        elif data['val_slides'][i]:
+            val_nonzero.append(data['nonzero'][i])
+            val_features.append(data['patch_embeddings'][i])
+    
+    # Non-zero indices
+    train_nonzero = np.concatenate(train_nonzero)
+    val_nonzero = np.concatenate(val_nonzero)
+    
+    # CNN Features concatenated
+    x["train"] = torch.tensor(np.concatenate(train_features)[train_nonzero]).to(config['device'])
+    x["val"] = torch.tensor(np.concatenate(val_features)[val_nonzero]).to(config['device'])
+    
+    if config['mode'] in ['gnn_test']:
+        # Create the GNN model
+        GATNet(num_genes=data['num_genes'], num_heads=config['GNN']['attn_heads'], drop_edge=config['GNN']['drop_edge']).to(config['device'])
+        
+        # Load the model
+        model_path = config['gnn_path']
+        gnn.load_state_dict(torch.load(model_path, map_location=config['device']))
+        
+        # Test the model
+        # Get the directory of the model path
+        plot_path = os.path.dirname(model_path)
+        
+        gnn_test_save_whole_dataset(plot_path, gnn, x['val'], graph_datasets['val'][0], torch.tensor(image_datasets['val'].y).type(torch.double).to(config['device']), data, config)
+        
+        del gnn
+    elif config['mode'] == 'gnn_train':
+        for run_idx in range(5):
+            # Create the GNN model
+            if config['GNN']['type'] == 'GAT':
+                gnn = GATNet(num_genes=data['num_genes'], num_heads=config['GNN']['attn_heads'], drop_edge=config['GNN']['drop_edge']).to(config['device'])
+            
+            if config['GNN']['optimizer']['type'] == "adam":
+                optimizer = torch.optim.Adam(gnn.parameters(), lr=config['GNN']['optimizer']['lr'], weight_decay=config['GNN']['optimizer']['weight_decay'])
+                
+            if config['GNN']['scheduler']['type'] == "warmup":            
+                scheduler = get_linear_schedule_with_warmup(optimizer, warmup_steps=config['GNN']['scheduler']['warmup_steps'], t_total=config['GNN']['epochs'])
+                
+            for i in range(config['gnn_epochs'] + 1):
+                train_mse, train_corr = gnn_train_whole_dataset(gnn, i, x['train'], graph_datasets['train'][0], torch.tensor(image_datasets['train'].y).to(config['device']), optimizer)
+                        
+                if(i % 40 == 0):
+                    scheduler.step()
+                    
+                    test_mse, test_mae, test_corr = gnn_test_whole_dataset(gnn, x['val'], graph_datasets['val'][0], torch.tensor(image_datasets['val'].y).type(torch.double).to(config['device']), data['num_genes'])
+                    
+                    print(f'Epoch: {i}, Train MSE: {train_mse}, Train Corr: {train_corr}')
+                    print(f'Epoch: {i}, Test MSE: {test_mse}, Test MAE: {test_mae}, Test Corr: {test_corr}')
+            
+            plot_path = config['output_dir'] + "/" + str(run_idx) + "/gnn/"
+            Path(plot_path).mkdir(parents=True, exist_ok=True)
+            
+            gnn_test_save_whole_dataset(plot_path, gnn, x['val'], graph_datasets['val'][0], torch.tensor(image_datasets['val'].y).type(torch.double).to(config['device']), data, config)
             
             model_path = plot_path + f"model_state_dict.pt"
             torch.save(gnn.cpu().state_dict(), model_path)
