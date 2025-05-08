@@ -1,5 +1,5 @@
 *.out
-result/
+results/
 preds/
 logs/
 data*/

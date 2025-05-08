@@ -200,4 +200,4 @@ def preprocess_data(config):
     # Initialize the dataloaders dictionary
     dataloaders = {i: torch.utils.data.DataLoader(image_datasets[i], batch_size=config['CNN']['batch_size'], shuffle=False, num_workers=8) for i in ['train', 'val']}
     
-    return data, dataloaders, dataset_sizes
+    return data, image_datasets, dataloaders, dataset_sizes
