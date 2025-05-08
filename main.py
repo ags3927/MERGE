@@ -4,9 +4,9 @@ import torch
 from pathlib import Path
 from argparse import ArgumentParser
 from utils.data import preprocess_data
-from utils.graph import graph_construction
+from utils.graph import graph_construction, graph_construction_whole_dataset
 from utils.cnn import cnn_block
-from utils.gnn import gnn_block
+from utils.gnn import gnn_block, gnn_block_whole_dataset
 
 def main(args):
     # Extract the gene and config file
@@ -44,16 +44,19 @@ def main(args):
     config['device'] = torch.device(f"cuda:{device}" if torch.cuda.is_available() else "cpu")
     
     # Preprocess the data
-    data, dataloaders, dataset_sizes = preprocess_data(config)
+    data, image_datasets, dataloaders, dataset_sizes = preprocess_data(config)
     
     # CNN Block
     data = cnn_block(data=data, dataloaders=dataloaders, dataset_sizes=dataset_sizes, config=config)
     
     if mode in ['gnn_train', 'gnn_test', 'gnn_test_ext']:
-        # Construct graph datasets
-        graph_dataloaders = graph_construction(data, config)
+        # Construct graph datasets for whole dataset
+        # graph_datasets = graph_construction_whole_dataset(data, config)
         
-        # GNN Block
+        # GNN Block for whole dataset
+        # gnn_block(data=data, image_datasets=image_datasets, config=config, graph_datasets=graph_datasets)
+        
+        graph_dataloaders = graph_construction(data, config)
         gnn_block(data=data, dataloaders=graph_dataloaders, config=config)
    
     return
